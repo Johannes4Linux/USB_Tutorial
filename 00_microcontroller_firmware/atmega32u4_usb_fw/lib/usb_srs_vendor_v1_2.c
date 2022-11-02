@@ -21,6 +21,8 @@
 #include <avr/interrupt.h> 
 #include "usb_srs_vendor_v1_2.h"
 
+uint8_t display = 0;
+
 /**
  * @brief USB General Interrupt (S253)
  */ 
@@ -105,6 +107,7 @@ void usb_ep0_setup(void) {
 	uint8_t wLength_h;
 	uint8_t des_bytes;
 	uint16_t length;
+	int i;
 
 	/* Let's write the USB descriptors into the flash memory */
 	/*** Device Descriptor ***/
@@ -254,8 +257,35 @@ void usb_ep0_setup(void) {
 			SBI(UECONX,STALLRQ);
 		   	break;
 		}
-	}
-	else SBI(UECONX,STALLRQ); /* no standard request, STALL response */
+	} else if((bmRequestType & 0x60) == 0x40) {
+		switch(bRequest) {
+			case 0x1:
+				/* Set new value to 7 segment display */
+				display = wValue_l;
+				CBI(UEINTX,TXINI); /* Send OUT package (ZLP) and clear bank */
+				while (!(UEINTX & (1<<TXINI))); /* wait for bank to be cleared */
+				break;
+			case 0x2:
+				/* Return displayed value */
+				UEDATX = display;
+				for(i=1; i<length; i++) {
+					UEDATX = i;
+					if ((i % Ep0_fs) == 0) {
+						/* FIFO is full, send data */
+						CBI(UEINTX,TXINI); /* Send IN package */
+						while (!(UEINTX & ((1<<RXOUTI) | (1<<TXINI)))); /* Wait for ACK from host */
+					}
+				}
+				if (!(UEINTX & (1 << RXOUTI))) {
+					CBI(UEINTX,TXINI); /* Send IN package */
+					while (!(UEINTX & (1 << RXOUTI))); /* Wait for (ZLP) ACK from host */
+				}   
+				CBI(UEINTX, RXOUTI); /* Handshake to acknowledge IRQ */
+			default:
+				SBI(UECONX,STALLRQ);
+				break;
+		}
+	} else SBI(UECONX,STALLRQ); /* no standard request, STALL response */
 }
 
 /*! \brief Sende Deskriptor zum PC (22.14 IN-EP management S 275)

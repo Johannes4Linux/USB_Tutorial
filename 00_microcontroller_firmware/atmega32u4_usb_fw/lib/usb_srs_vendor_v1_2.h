@@ -67,4 +67,6 @@ void usb_init_endpoint(uint8_t nu,uint8_t ty,uint8_t di,uint8_t si,uint8_t ba);
 void usb_ep0_setup(void);
 void usb_send_descriptor(uint8_t de[] ,uint8_t db);
 
+extern uint8_t display;
+
 #endif
