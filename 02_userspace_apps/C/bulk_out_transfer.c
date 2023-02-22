@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
 	}
 
 	memset(buffer, 0, 8);
-	buffer[0] = 0x1;
+	buffer[0] = 0xd;
 	for(i=0; i<20; i++) {
 		buffer[0] ^= 0x2;
 		status = libusb_bulk_transfer(dev, 1, buffer, 8, &transferred, 100);
